@@ -27,21 +27,19 @@ def miller_rabin(n: int, tol: int = 128) -> bool:
             return d, r
         return get_dr(d // 2, r + 1)
 
-    d, r = get_dr(n - 1, 0)
-
     def test(n, d, r):
         a = rd.randint(2, n - 2)
         x = pow(a, d, n)
 
-        if x in (1, n - 1):
-            return True
         for _ in range(r):
-            x = (x * x) % n
-            if x == n - 1:
+            if x in (1, n - 1):
                 return True
+
+            x = (x * x) % n
 
         return False
 
+    d, r = get_dr(n - 1, 0)
     k = tol // 2 + 1
     answers = [test(n, d, r) for _ in range(k)]
     # if any of these answers is False, then it is False
@@ -95,6 +93,7 @@ def make_shares(secret: int, n: int) -> Tuple[List[Point], int]:
 
     p = find_prime(bits)
     poly = [secret] + create_polynomial(k - 1, p)  # create a polynomial of degree k
+    print(poly)
 
     points = sample_polynomial(poly, n, p)
 
@@ -108,9 +107,9 @@ def reconstruct(pts: List[Point], p: int) -> int:
     we'll compute this using the optimised formula for the
     Lagrange polynomials
     """
-    f0 = 0
+    f0 = 0.
     for xi, yi in pts:
-        prod = 1
+        prod = 1.
         for xm, _ in pts:
             if xi != xm:
                 prod *= xm / (xm - xi)
@@ -129,7 +128,7 @@ if __name__ == "__main__":
     shares, prime = make_shares(secret, 7)
 
     # get 50% + 1 of our shares
-    quorum = sorted(rd.sample(shares, 4), key=lambda x: x[0])
+    quorum = shares[:4]
 
     # and unlock the secret
     unlocked = reconstruct(quorum, prime)
