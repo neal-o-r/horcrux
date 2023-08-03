@@ -41,10 +41,9 @@ def miller_rabin(n: int, tol: int = 128) -> bool:
 
     d, r = get_dr(n - 1, 0)
     k = tol // 2 + 1
-    answers = [test(n, d, r) for _ in range(k)]
-    # if any of these answers is False, then it is False
-    # otherwise return True
-    return all(answers)
+    # if any of the tests returned False, then it is composite
+    # otherwise it's possible prime
+    return all(test(n, d, r) for _ in range(k))
 
 
 def find_prime(bits: int) -> int:
@@ -67,7 +66,7 @@ def create_polynomial(degree: int, p: int) -> Poly:
     let's make them ints for ease
     all coefficients are less than a large prime, p
     """
-    return [rd.randint(1, p) for _ in range(degree)]
+    return [rd.randint(1, p - 1) for _ in range(degree)]
 
 
 def sample_polynomial(poly: Poly, n: int, prime: int) -> List[Point]:
@@ -76,7 +75,7 @@ def sample_polynomial(poly: Poly, n: int, prime: int) -> List[Point]:
     mod the pts by our prime p
     """
     def f(x):
-        return sum((c * (x ** i)) for i, c in enumerate(poly)) % prime
+        return sum((c * (x ** a)) for a, c in enumerate(poly)) % prime
 
     return [(x, f(x)) for x in range(1, n + 1)]
 
@@ -93,7 +92,6 @@ def make_shares(secret: int, n: int) -> Tuple[List[Point], int]:
 
     p = find_prime(bits)
     poly = [secret] + create_polynomial(k - 1, p)  # create a polynomial of degree k
-    print(poly)
 
     points = sample_polynomial(poly, n, p)
 
@@ -107,30 +105,29 @@ def reconstruct(pts: List[Point], p: int) -> int:
     we'll compute this using the optimised formula for the
     Lagrange polynomials
     """
-    f0 = 0.
+    f0 = 0
     for xi, yi in pts:
-        prod = 1.
-        for xm, _ in pts:
-            if xi != xm:
-                prod *= xm / (xm - xi)
+        prod = 1
+        for xj, _ in pts:
+            if xi != xj:
+                prod *= -xj * pow(xi - xj, prime - 2, prime) % prime
 
-        f0 += prod * yi
+        f0 += (yi * prod) % prime
 
-    return int(f0 % p)
+    return f0 % prime
 
 
 if __name__ == "__main__":
 
     secret = 1234567890  # our super-secret number
-    print(f"The secret is {secret}")
+    print(f"The plaintext secret is {secret}")
 
     # create 7 shares of the secret
     shares, prime = make_shares(secret, 7)
 
     # get 50% + 1 of our shares
-    quorum = shares[:4]
+    quorum = rd.sample(shares, 4)
 
     # and unlock the secret
     unlocked = reconstruct(quorum, prime)
-
     print(f"The decrypted secret is {unlocked}")
